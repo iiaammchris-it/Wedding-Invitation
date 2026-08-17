@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>1080p Gallery Video Downloader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            overflow: hidden;
+            background: #FAF8F4;
+            font-family: 'Montserrat', sans-serif;
+            height: 100vh;
+            width: 100vw;
+        }
+        .gallery-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: #FAF8F4;
+            overflow: hidden;
+            padding: 20px 0;
+        }
+        .marquee-row {
+            width: 100%;
+            overflow: hidden;
+            padding: 8px 0;
+            flex-shrink: 0;
+            -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+            mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+        }
+        .marquee-track {
+            display: flex;
+            width: max-content;
+            animation: marqueeLeft 35s linear infinite;
+        }
+        .marquee-row[data-dir="right"] .marquee-track {
+            animation-name: marqueeRight;
+        }
+        @keyframes marqueeLeft {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+        @keyframes marqueeRight {
+            from { transform: translateX(-50%); }
+            to { transform: translateX(0); }
+        }
+        .marquee-item {
+            flex: 0 0 auto;
+            width: 200px;
+            height: 280px;
+            margin: 0 10px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid rgba(201, 166, 107, 0.3);
+            box-shadow: 0 8px 24px rgba(63, 74, 60, 0.15);
+        }
+        .marquee-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* CONTROLS */
+        .controls {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            padding: 14px 28px;
+            border-radius: 60px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+            border: 1px solid rgba(201, 166, 107, 0.2);
+            transition: all 0.4s ease;
+        }
+        .controls.hidden {
+            opacity: 0;
+            transform: translateX(-50%) translateY(30px);
+            pointer-events: none;
+        }
+        .controls button {
+            padding: 10px 28px;
+            border: none;
+            border-radius: 40px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .controls .record-btn {
+            background: #e74c3c;
+            color: white;
+            box-shadow: 0 4px 20px rgba(231, 76, 60, 0.3);
+        }
+        .controls .record-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 30px rgba(231, 76, 60, 0.4);
+        }
+        .controls .record-btn.recording {
+            background: #c0392b;
+            animation: pulse 1s infinite;
+        }
+        .controls .download-btn {
+            background: #2ecc71;
+            color: white;
+            box-shadow: 0 4px 20px rgba(46, 204, 113, 0.3);
+        }
+        .controls .download-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 30px rgba(46, 204, 113, 0.4);
+        }
+        .controls .status-text {
+            font-size: 13px;
+            color: #696969;
+            padding: 0 10px;
+            min-width: 100px;
+            text-align: center;
+        }
+        .controls .recording-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #27ae60;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        .controls .recording-indicator.active {
+            background: #e74c3c;
+            animation: pulse 1s infinite;
+        }
+        .controls .badge {
+            font-size: 11px;
+            color: #8B8B8B;
+            background: rgba(0,0,0,0.05);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .hint {
+            position: fixed;
+            bottom: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(106, 106, 106, 0.4);
+            font-size: 12px;
+            font-family: 'Montserrat', sans-serif;
+            letter-spacing: 1px;
+            z-index: 99;
+            transition: opacity 0.4s ease;
+            text-align: center;
+            pointer-events: none;
+        }
+        .hint.hidden {
+            opacity: 0;
+        }
+
+        @media (max-width: 768px) {
+            .marquee-item {
+                width: 150px;
+                height: 210px;
+                margin: 0 8px;
+            }
+            .controls {
+                padding: 10px 16px;
+                gap: 10px;
+                bottom: 20px;
+                flex-wrap: wrap;
+                justify-content: center;
+                max-width: 95%;
+                border-radius: 30px;
+            }
+            .controls button {
+                padding: 8px 16px;
+                font-size: 11px;
+            }
+            .controls .status-text {
+                font-size: 11px;
+                min-width: 70px;
+            }
+            .controls .badge {
+                font-size: 9px;
+                padding: 2px 8px;
+            }
+            .hint {
+                bottom: 90px;
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="gallery-container" id="galleryContainer">
+    <div class="marquee-row" data-dir="left">
+        <div class="marquee-track" id="track1"></div>
+    </div>
+    <div class="marquee-row" data-dir="right">
+        <div class="marquee-track" id="track2"></div>
+    </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls" id="controls">
+    <span class="recording-indicator" id="indicator"></span>
+    <span class="status-text" id="statusText">Ready</span>
+    <span class="badge">1080p</span>
+    <button class="record-btn" id="recordBtn">🎬 Record</button>
+    <button class="download-btn" id="downloadBtn" style="display:none;">💾 Download</button>
+</div>
+
+<div class="hint" id="hint">Press SPACE to start/stop · Full HD 1080p</div>
+
+<script>
+    // ============================================================
+    // 1. GALLERY IMAGES
+    // ============================================================
+    const images = [
+        'assets/NOT00811.jpg',
+        'assets/NOT00965.jpg',
+        'assets/NOT01272.jpg',
+        'assets/NOT00792.jpg',
+        'assets/NOT00976.jpg',
+        'assets/NOT01259.jpg',
+        'assets/NOT00913.jpg',
+        'assets/NOT00872.jpg',
+        'assets/NOT00678.jpg',
+        'assets/NOT01164.jpg',
+        'assets/NOT01160.jpg',
+        'assets/NOT00649.jpg',
+        'assets/NOT01151.jpg',
+        'assets/NOT00917.jpg',
+        'assets/NOT00699.jpg',
+        'assets/NOT00760.jpg',
+        'assets/NOT00773.jpg',
+        'assets/NOT01281.jpg'
+    ];
+
+    // ============================================================
+    // 2. BUILD GALLERY
+    // ============================================================
+    function buildGallery() {
+        const track1 = document.getElementById('track1');
+        const track2 = document.getElementById('track2');
+
+        const row1Images = images.slice(0, 9);
+        const row1Content = [...row1Images, ...row1Images].map(src =>
+            `<div class="marquee-item"><img src="${src}" alt="Gallery" /></div>`
+        ).join('');
+        track1.innerHTML = row1Content;
+
+        const row2Images = images.slice(9);
+        const row2Content = [...row2Images, ...row2Images].map(src =>
+            `<div class="marquee-item"><img src="${src}" alt="Gallery" /></div>`
+        ).join('');
+        track2.innerHTML = row2Content;
+    }
+    buildGallery();
+
+    // ============================================================
+    // 3. 1080p RECORDING - LIGHTWEIGHT
+    // ============================================================
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let isRecording = false;
+    let stream = null;
+
+    const recordBtn = document.getElementById('recordBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const statusText = document.getElementById('statusText');
+    const indicator = document.getElementById('indicator');
+    const controls = document.getElementById('controls');
+    const hint = document.getElementById('hint');
+
+    async function startRecording() {
+        try {
+            statusText.textContent = 'Starting 1080p...';
+            
+            // Ask user to share the screen/tab
+            stream = await navigator.mediaDevices.getDisplayMedia({
+                preferCurrentTab: true,
+                video: {
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    frameRate: { ideal: 30 }
+                },
+                audio: false
+            });
+
+            // Check actual resolution
+            const track = stream.getVideoTracks()[0];
+            const settings = track.getSettings();
+            console.log(`Recording at: ${settings.width}×${settings.height}`);
+
+            // Create recorder with 1080p bitrate (8 Mbps)
+            mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'video/webm;codecs=vp9',
+                videoBitsPerSecond: 8000000 // 8 Mbps for 1080p
+            });
+
+            recordedChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                isRecording = false;
+                recordBtn.textContent = '🎬 Record';
+                recordBtn.classList.remove('recording');
+                indicator.classList.remove('active');
+                
+                const sizeMB = (recordedChunks.reduce((acc, chunk) => acc + chunk.size, 0) / (1024 * 1024)).toFixed(1);
+                statusText.textContent = `✅ ${sizeMB}MB`;
+                
+                // Show download button
+                downloadBtn.style.display = 'inline-block';
+                
+                // Show controls again
+                controls.classList.remove('hidden');
+                hint.classList.remove('hidden');
+                
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    stream = null;
+                }
+            };
+
+            // Start recording
+            mediaRecorder.start(1000);
+            isRecording = true;
+
+            recordBtn.textContent = '⏹ Stop';
+            recordBtn.classList.add('recording');
+            indicator.classList.add('active');
+            statusText.textContent = '🔴 1080p Recording';
+
+            downloadBtn.style.display = 'none';
+
+            // HIDE CONTROLS during recording
+            controls.classList.add('hidden');
+            hint.classList.add('hidden');
+
+        } catch (error) {
+            console.error('Error:', error);
+            statusText.textContent = '❌ ' + (error.message.includes('not allowed') ? 'Permission denied' : error.message);
+            recordBtn.textContent = '🎬 Record';
+            recordBtn.disabled = false;
+            controls.classList.remove('hidden');
+        }
+    }
+
+    function stopRecording() {
+        if (mediaRecorder && isRecording) {
+            mediaRecorder.stop();
+        }
+    }
+
+    function downloadVideo() {
+        if (recordedChunks.length === 0) {
+            alert('No recording found. Please record first.');
+            return;
+        }
+
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `gallery-1080p-${new Date().toISOString().slice(0,10)}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        downloadBtn.style.display = 'none';
+        statusText.textContent = `📥 ${sizeMB}MB downloaded!`;
+        setTimeout(() => {
+            statusText.textContent = 'Ready';
+        }, 4000);
+    }
+
+    // Toggle recording
+    recordBtn.addEventListener('click', () => {
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    });
+
+    downloadBtn.addEventListener('click', downloadVideo);
+
+    // ============================================================
+    // 4. KEYBOARD SHORTCUTS
+    // ============================================================
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        
+        if (e.code === 'Space') {
+            e.preventDefault();
+            recordBtn.click();
+        }
+        
+        if (e.code === 'KeyD' && downloadBtn.style.display !== 'none') {
+            downloadBtn.click();
+        }
+    });
+
+    console.log('🎬 1080p Gallery Video Downloader');
+    console.log('📸 Press SPACE to start/stop recording');
+    console.log('💾 Press D to download the video');
+    console.log('📐 Recording at 1920×1080 (Full HD)');
+    console.log('');
+    console.log('💡 Record 10-15 seconds for a smooth loop');
+    console.log('📁 1080p files are ~10-15MB for 10 seconds');
+    console.log('⚡ Lightweight - works on any PC!');
+</script>
+
+</body>
+</html>
